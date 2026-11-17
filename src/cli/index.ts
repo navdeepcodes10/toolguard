@@ -109,9 +109,11 @@ program
 
     // Evaluate normalized command that will actually execute, plus raw string
     let result: EvaluationResult = engine.evaluate(normalizedCmd);
-    if (result.verdict === 'ALLOW') {
+    if (result.verdict !== 'BLOCK') {
       const rawResult = engine.evaluate(rawCmd);
-      if (rawResult.verdict !== 'ALLOW') {
+      if (rawResult.verdict === 'BLOCK') {
+        result = rawResult;
+      } else if (rawResult.verdict === 'PROMPT' && result.verdict === 'ALLOW') {
         result = rawResult;
       }
     }

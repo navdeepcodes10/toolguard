@@ -146,13 +146,28 @@ describe('ToolGuard Security Engine', () => {
   });
 
   describe('Command Line Tokenizer', () => {
+    it('should preserve multi-argument arrays directly', () => {
+      const tokens = parseCommandLine(['printf', '%s', 'report 2026.txt']);
+      assert.deepStrictEqual(tokens, ['printf', '%s', 'report 2026.txt']);
+    });
+
+    it('should retain empty quoted arguments', () => {
+      const tokens = parseCommandLine(['printf "<%s><%s>" "" x']);
+      assert.deepStrictEqual(tokens, ['printf', '<%s><%s>', '', 'x']);
+    });
+
+    it('should preserve ordinary backslashes inside double quotes', () => {
+      const tokens = parseCommandLine(['printf "%s" "a\\nb"']);
+      assert.deepStrictEqual(tokens, ['printf', '%s', 'a\\nb']);
+    });
+
     it('should handle embedded quote parameters like node --eval="console.log(1)"', () => {
-      const tokens = parseCommandLine(['node', '--eval="console.log(1)"']);
+      const tokens = parseCommandLine(['node --eval="console.log(1)"']);
       assert.deepStrictEqual(tokens, ['node', '--eval=console.log(1)']);
     });
 
     it('should normalize wholly quoted binaries like "rm" -rf /path', () => {
-      const tokens = parseCommandLine(['"rm"', '-rf', '/path']);
+      const tokens = parseCommandLine(['"rm" -rf /path']);
       assert.deepStrictEqual(tokens, ['rm', '-rf', '/path']);
     });
 
