@@ -53,10 +53,13 @@ npx toolguard presets
 Automatically shield commands in your terminal or subshell:
 
 ```bash
+# Install globally so toolguard is available in your PATH
+npm install -g toolguard
+
 # Add to ~/.zshrc or ~/.bashrc
 eval "$(toolguard hook)"
 
-# Or install automatically
+# Or install hook automatically
 toolguard hook --install
 ```
 

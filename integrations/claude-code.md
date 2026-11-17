@@ -3,17 +3,22 @@
 Shield your Claude Code terminal sessions and Model Context Protocol (MCP) servers with ToolGuard.
 
 ## 1. Claude Code CLI Config
-In your project or home directory, configure Claude Code's tools to use ToolGuard's proxy:
+In your project or home directory, wrap any MCP server using ToolGuard's proxy:
 
 ```json
 {
   "mcpServers": {
     "filesystem-shielded": {
       "command": "npx",
-      "args": ["toolguard", "mcp-proxy"],
-      "env": {
-        "TOOLGUARD_MODE": "enforce"
-      }
+      "args": [
+        "toolguard",
+        "mcp-proxy",
+        "--",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/path/to/project"
+      ]
     }
   }
 }

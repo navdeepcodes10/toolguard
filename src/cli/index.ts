@@ -92,6 +92,7 @@ program
 program
   .command('run <command...>')
   .description('Safely execute a command through the ToolGuard policy firewall')
+  .passThroughOptions()
   .action(async (cmdParts: string[]) => {
     const rawCmd = cmdParts.join(' ');
     const config = loadConfig();
@@ -125,11 +126,12 @@ program
       }
     }
 
-    // Proceed to execute
+    // Proceed to execute preserving discrete argument list
     logger.log(rawCmd, result, true);
-    const child = spawnSync(rawCmd, {
-      shell: true,
-      stdio: 'inherit'
+    const [executable, ...args] = cmdParts;
+    const child = spawnSync(executable, args, {
+      stdio: 'inherit',
+      shell: false
     });
 
     process.exit(child.status ?? 0);
@@ -192,7 +194,11 @@ program
   .description('Generate or install one-command shell integration (zsh, bash, fish)')
   .option('-i, --install', 'Automatically append hook to ~/.zshrc or ~/.bashrc')
   .action((shellArg, options) => {
-    const detectedShell = shellArg || (process.env.SHELL?.includes('zsh') ? 'zsh' : 'bash');
+    const envShell = process.env.SHELL || '';
+    const detectedShell = shellArg || (
+      envShell.includes('fish') ? 'fish' :
+      envShell.includes('zsh') ? 'zsh' : 'bash'
+    );
 
     if (options.install) {
       const res = installShellHook(detectedShell);
@@ -232,11 +238,12 @@ program
 
 // Command: mcp-proxy
 program
-  .command('mcp-proxy')
-  .description('Run as an MCP stdio firewall proxy to shield Model Context Protocol servers')
-  .action(() => {
+  .command('mcp-proxy [upstreamCommand...]')
+  .description('Run as an MCP stdio firewall proxy to shield upstream Model Context Protocol servers')
+  .passThroughOptions()
+  .action((upstreamCommand) => {
     const config = loadConfig();
-    startMcpProxy(config);
+    startMcpProxy(config, upstreamCommand);
   });
 
 program.parse(process.argv);

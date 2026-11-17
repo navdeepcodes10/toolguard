@@ -1,16 +1,35 @@
 import readline from 'readline';
+import { spawn, ChildProcess } from 'child_process';
 import { ToolGuardEngine } from '../core/engine';
 import { AuditLogger } from '../logger/audit';
 import { EvaluationResult, ToolGuardConfig } from '../types';
 
 /**
- * Standard MCP JSON-RPC Stdio Proxy
- * Reads JSON-RPC requests from stdin, filters dangerous 'tools/call' payloads,
- * and passes safe requests through to the underlying MCP server.
+ * Standard MCP JSON-RPC Stdio Proxy & Firewall
+ * Intercepts tool calls between an AI client (Claude Code, Cursor) and an upstream MCP server.
  */
-export function startMcpProxy(config?: ToolGuardConfig) {
+export function startMcpProxy(config?: ToolGuardConfig, upstreamCommand?: string[]) {
   const engine = new ToolGuardEngine(config);
   const logger = new AuditLogger();
+
+  let upstreamProcess: ChildProcess | null = null;
+
+  if (upstreamCommand && upstreamCommand.length > 0) {
+    const [bin, ...args] = upstreamCommand;
+    upstreamProcess = spawn(bin, args, {
+      stdio: ['pipe', 'pipe', 'inherit'],
+      shell: false
+    });
+
+    // Pipe upstream responses back to agent client
+    upstreamProcess.stdout?.on('data', (chunk) => {
+      process.stdout.write(chunk);
+    });
+
+    upstreamProcess.on('exit', (code) => {
+      process.exit(code ?? 0);
+    });
+  }
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -62,11 +81,18 @@ export function startMcpProxy(config?: ToolGuardConfig) {
         logger.log({ toolName: name, args }, result, true);
       }
 
-      // If safe or non-tool call, echo / forward through
-      process.stdout.write(trimmed + '\n');
+      // Forward approved message to upstream process if running, or echo back
+      if (upstreamProcess && upstreamProcess.stdin) {
+        upstreamProcess.stdin.write(trimmed + '\n');
+      } else {
+        process.stdout.write(trimmed + '\n');
+      }
     } catch {
-      // Pass-through raw lines if not valid JSON
-      process.stdout.write(trimmed + '\n');
+      if (upstreamProcess && upstreamProcess.stdin) {
+        upstreamProcess.stdin.write(trimmed + '\n');
+      } else {
+        process.stdout.write(trimmed + '\n');
+      }
     }
   });
 }

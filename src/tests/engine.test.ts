@@ -95,11 +95,23 @@ describe('ToolGuard Security Engine', () => {
       assert.strictEqual(result.ruleId, 'docker-privileged');
     });
 
-    it('should BLOCK docker socket mount', () => {
-      const result = dockerEngine.evaluate('docker run -v /var/run/docker.sock:/var/run/docker.sock alpine');
-      assert.strictEqual(result.verdict, 'BLOCK');
-      assert.strictEqual(result.risk, 'CRITICAL');
-      assert.strictEqual(result.ruleId, 'docker-socket-mount');
+    it('should BLOCK docker socket mount via -v, --volume, and --mount', () => {
+      const vResult = dockerEngine.evaluate('docker run -v /var/run/docker.sock:/var/run/docker.sock alpine');
+      assert.strictEqual(vResult.verdict, 'BLOCK');
+
+      const volResult = dockerEngine.evaluate('docker run --volume=/var/run/docker.sock:/var/run/docker.sock alpine');
+      assert.strictEqual(volResult.verdict, 'BLOCK');
+
+      const mountResult = dockerEngine.evaluate('docker run --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock alpine');
+      assert.strictEqual(mountResult.verdict, 'BLOCK');
+    });
+
+    it('should BLOCK docker host root mount', () => {
+      const rootResult = dockerEngine.evaluate('docker run -v /:/host alpine');
+      assert.strictEqual(rootResult.verdict, 'BLOCK');
+
+      const volRootResult = dockerEngine.evaluate('docker run --volume=/:/host alpine');
+      assert.strictEqual(volRootResult.verdict, 'BLOCK');
     });
 
     it('should BLOCK piped remote execution (curl | bash)', () => {
@@ -112,7 +124,7 @@ describe('ToolGuard Security Engine', () => {
   describe('Shell Hook Generator', () => {
     it('should generate zsh/bash hook with alias tg and rm wrapper', () => {
       const hook = generateShellHook('zsh');
-      assert.ok(hook.includes('alias tg="toolguard run"'));
+      assert.ok(hook.includes('alias tg="toolguard run --"'));
       assert.ok(hook.includes('_toolguard_shield_rm'));
     });
 

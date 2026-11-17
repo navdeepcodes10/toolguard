@@ -27,9 +27,10 @@ export class ToolGuardEngine {
     const presetRules: SecurityRule[] = [];
     if (this.config.presets && Array.isArray(this.config.presets)) {
       for (const presetName of this.config.presets) {
-        const found = PRESET_MAP[presetName.toLowerCase()];
-        if (found) {
-          presetRules.push(...found);
+        if (typeof presetName !== 'string') continue;
+        const normalized = presetName.trim().toLowerCase();
+        if (Object.prototype.hasOwnProperty.call(PRESET_MAP, normalized)) {
+          presetRules.push(...PRESET_MAP[normalized]);
         }
       }
     }

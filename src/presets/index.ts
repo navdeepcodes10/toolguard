@@ -19,7 +19,7 @@ export const DOCKER_PRESET: SecurityRule[] = [
     risk: 'CRITICAL',
     action: 'BLOCK',
     patterns: [
-      /\bdocker\s+(run|create)\b.*-v\s+.*\/var\/run\/docker\.sock\b/
+      /\bdocker\s+(run|create)\b.*(-v\s*|--volume(\s+|=)|--mount\b.*(source=|src=))[\'\"\/a-zA-Z0-9_\-\.]*\/var\/run\/docker\.sock\b/
     ],
     mitigation: 'Do not expose the host Docker daemon socket inside guest containers.'
   },
@@ -30,7 +30,7 @@ export const DOCKER_PRESET: SecurityRule[] = [
     risk: 'CRITICAL',
     action: 'BLOCK',
     patterns: [
-      /\bdocker\s+(run|create)\b.*-v\s+\/:/
+      /\bdocker\s+(run|create)\b.*(-v\s*|--volume(\s+|=)|--mount\b.*(source=|src=))\/(:\/|\s|,|$)/
     ],
     mitigation: 'Mount only specific project directories, never the host root.'
   },
