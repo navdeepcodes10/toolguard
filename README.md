@@ -111,6 +111,19 @@ protectedPaths:
   - ".env.production"
   - "~/.ssh"
 
+# Network & Outbound Security (Phase 3)
+network:
+  blockCloudMetadata: true # Blocks SSRF to 169.254.169.254
+  blockRawIPs: true        # Restricts connections to raw IP addresses
+  blockedDomains:
+    - "malicious-domain.com"
+  allowedDomains:
+    - "github.com"
+    - "registry.npmjs.org"
+
+# Enforce strict project boundary (blocks symlink escapes)
+sandboxWorkspace: true
+
 # Scan commands and tool inputs for leaked API keys
 detectSecrets: true
 ```

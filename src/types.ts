@@ -31,6 +31,13 @@ export interface ToolCallPayload {
   content?: string;
 }
 
+export interface NetworkConfig {
+  allowedDomains?: string[];
+  blockedDomains?: string[];
+  blockRawIPs?: boolean;
+  blockCloudMetadata?: boolean;
+}
+
 export interface ToolGuardConfig {
   version: string;
   mode: 'enforce' | 'audit' | 'interactive';
@@ -39,6 +46,9 @@ export interface ToolGuardConfig {
   allowedCommands?: string[];
   blockedCommands?: string[];
   protectedPaths?: string[];
+  network?: NetworkConfig;
+  sandboxWorkspace?: boolean;
+  workspaceRoot?: string;
   auditLogPath?: string;
   detectSecrets?: boolean;
 }

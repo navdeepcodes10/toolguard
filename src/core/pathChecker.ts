@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs';
 
 export const PROTECTED_SYSTEM_PATHS = [
   '/etc',
@@ -19,7 +20,42 @@ export const SENSITIVE_FILE_NAMES = [
   /^service-account.*\.json$/
 ];
 
-export function isPathProtected(targetPath: string, customProtectedPaths?: string[]): { isProtected: boolean; reason?: string } {
+/**
+ * Validates that a path stays strictly inside the designated workspace boundary,
+ * preventing symlink escapes and directory traversal.
+ */
+export function isWithinWorkspace(targetPath: string, workspaceRoot: string): { allowed: boolean; reason?: string } {
+  try {
+    const normRoot = path.resolve(workspaceRoot);
+    let resolvedTarget: string;
+
+    if (fs.existsSync(targetPath)) {
+      resolvedTarget = fs.realpathSync(targetPath);
+    } else {
+      resolvedTarget = path.resolve(targetPath);
+    }
+
+    if (resolvedTarget !== normRoot && !resolvedTarget.startsWith(normRoot + path.sep)) {
+      return {
+        allowed: false,
+        reason: `Access outside workspace boundary is blocked (resolved to '${resolvedTarget}')`
+      };
+    }
+
+    return { allowed: true };
+  } catch (err: any) {
+    return {
+      allowed: false,
+      reason: `Failed to verify path boundary safety: ${err.message}`
+    };
+  }
+}
+
+export function isPathProtected(
+  targetPath: string,
+  customProtectedPaths?: string[],
+  workspaceRoot?: string
+): { isProtected: boolean; reason?: string } {
   const normalized = path.normalize(targetPath);
   const baseName = path.basename(normalized);
 
@@ -53,6 +89,17 @@ export function isPathProtected(targetPath: string, customProtectedPaths?: strin
           reason: `Path matches user-protected location '${p}'`
         };
       }
+    }
+  }
+
+  // Workspace sandbox boundary check
+  if (workspaceRoot) {
+    const wsCheck = isWithinWorkspace(targetPath, workspaceRoot);
+    if (!wsCheck.allowed) {
+      return {
+        isProtected: true,
+        reason: wsCheck.reason
+      };
     }
   }
 

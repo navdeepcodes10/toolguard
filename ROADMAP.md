@@ -35,18 +35,22 @@ A phased plan for the development, ecosystem integration, and community growth o
 
 ---
 
-## 📍 Phase 3: AST Parsing & Network Sandboxing (Next Up 🚀)
-- [ ] **Abstract Syntax Tree (AST) Shell Parser:**
-  - Move beyond regex matching to full shell AST parsing (handles command obfuscation, subshells, and piped commands like `echo aGVsbG8= | base64 -d | sh`).
-- [ ] **Network & Outbound URL Filter:**
-  - Whitelist allowed external domains (e.g., `github.com`, `registry.npmjs.org`, `pypi.org`).
-  - Block tool calls attempting to ping untrusted external IPs.
-- [ ] **Path Sandboxing:**
-  - Enforce strict workspace boundaries (e.g., prevent agents from reading `~/.ssh/` or `/etc/hosts` even through symlinks).
+## 📍 Phase 3: AST Parsing & Network Sandboxing (Completed ✅)
+- [x] **Abstract Syntax & Command Chain Decomposer:**
+  - Decomposes chained (`&&`, `||`, `;`), piped (`|`), and subshell (`$(...)`, `` `...` ``) commands.
+  - Recursively evaluates each atomic segment independently.
+  - Strips leading environment variable assignments (`FOO=bar rm -rf /`).
+  - Detects and blocks obfuscated base64 pipe executions (`base64 -d | sh`).
+- [x] **Network SSRF & Outbound Domain Filter:**
+  - Hard-blocks access to Cloud Instance Metadata Services (`169.254.169.254`).
+  - Evaluates outbound domains against configurable whitelist and blocklist.
+  - Blocks direct raw IP connections when configured.
+- [x] **Workspace Boundary & Symlink Sandboxing:**
+  - Enforces strict boundary verification to prevent directory traversal and symlink escapes outside the workspace root.
 
 ---
 
-## 📍 Phase 4: Open-Source Growth & Viral Launch
+## 📍 Phase 4: Community Growth & Going Viral (Next Up 🚀)
 - [ ] **GitHub Polish:**
   - Add interactive demo GIF or SVG terminal recording using `vhs`.
   - Add GitHub release badges (npm version, test coverage, license).
