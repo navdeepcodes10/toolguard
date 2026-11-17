@@ -67,22 +67,19 @@ export function resolveComponentsInOrder(startDir: string, targetPath: string, d
     } else {
       // Check for dangling or missing symlink at candidate
       let isSymlink = false;
-      let rawLink = '';
 
       try {
         const stat = fs.lstatSync(candidate);
-        if (stat.isSymbolicLink()) {
-          isSymlink = true;
-          rawLink = fs.readlinkSync(candidate);
-        }
+        isSymlink = stat.isSymbolicLink();
       } catch {
         // Expected lookup failure (file does not exist as symlink either)
       }
 
       if (isSymlink) {
-        // Resolve symlink target in filesystem order recursively, passing rawLink unchanged
-        // to avoid lexical normalization of .. segments (CWE-59).
-        // Recursive errors (e.g., depth limit) bubble up to isWithinWorkspace (CWE-674).
+        // Let readlinkSync errors propagate so TOCTOU race conditions (CWE-367)
+        // fail safely to isWithinWorkspace's denial handler rather than recursing with empty target.
+        const rawLink = fs.readlinkSync(candidate);
+
         const start = path.isAbsolute(rawLink)
           ? (path.parse(rawLink).root || (isWindows ? 'C:\\' : '/'))
           : path.dirname(candidate);
