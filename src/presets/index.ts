@@ -30,7 +30,7 @@ export const DOCKER_PRESET: SecurityRule[] = [
     risk: 'CRITICAL',
     action: 'BLOCK',
     patterns: [
-      /\bdocker\s+(run|create)\b.*(-v\s*|--volume(\s+|=)|--mount\b.*(source=|src=))\/(:\/|\s|,|$)/
+      /\bdocker\s+(run|create)\b.*(-v\s*|--volume(\s+|=)|--mount\b.*(source=|src=))[\'\"]*\/{1,}(:|\s|,|$|\")/
     ],
     mitigation: 'Mount only specific project directories, never the host root.'
   },

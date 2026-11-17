@@ -128,13 +128,32 @@ program
 
     // Proceed to execute preserving discrete argument list
     logger.log(rawCmd, result, true);
-    const [executable, ...args] = cmdParts;
+
+    // If passed as a single quoted string like "npm test", split by whitespace
+    let executable: string;
+    let args: string[];
+
+    if (cmdParts.length === 1 && cmdParts[0].trim().includes(' ')) {
+      const tokens = cmdParts[0].trim().match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
+      const cleaned = tokens.map(t => t.replace(/^["']|["']$/g, ''));
+      executable = cleaned[0] || cmdParts[0];
+      args = cleaned.slice(1);
+    } else {
+      executable = cmdParts[0];
+      args = cmdParts.slice(1);
+    }
+
     const child = spawnSync(executable, args, {
       stdio: 'inherit',
       shell: false
     });
 
-    process.exit(child.status ?? 0);
+    if (child.error) {
+      console.error(pc.red(`[ToolGuard] Failed to execute '${executable}': ${child.error.message}`));
+      process.exit(1);
+    }
+
+    process.exit(child.status ?? (child.signal ? 1 : 0));
   });
 
 // Command: init

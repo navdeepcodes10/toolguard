@@ -112,6 +112,15 @@ describe('ToolGuard Security Engine', () => {
 
       const volRootResult = dockerEngine.evaluate('docker run --volume=/:/host alpine');
       assert.strictEqual(volRootResult.verdict, 'BLOCK');
+
+      const quotedResult = dockerEngine.evaluate('docker run -v "/:/host" alpine');
+      assert.strictEqual(quotedResult.verdict, 'BLOCK');
+
+      const doubleSlashResult = dockerEngine.evaluate('docker run -v //:/host alpine');
+      assert.strictEqual(doubleSlashResult.verdict, 'BLOCK');
+
+      const quotedMountResult = dockerEngine.evaluate('docker run --mount type=bind,src="/",dst=/host alpine');
+      assert.strictEqual(quotedMountResult.verdict, 'BLOCK');
     });
 
     it('should BLOCK piped remote execution (curl | bash)', () => {
