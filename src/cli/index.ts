@@ -16,6 +16,7 @@ import { EvaluationResult, RiskLevel } from '../types';
 import { startMcpProxy } from '../mcp/proxy';
 import { PRESET_MAP } from '../presets';
 import { generateShellHook, installShellHook } from './hook';
+import { parseCommandLine } from './tokenizer';
 
 const program = new Command();
 const logger = new AuditLogger();
@@ -94,16 +95,31 @@ program
   .description('Safely execute a command through the ToolGuard policy firewall')
   .passThroughOptions()
   .action(async (cmdParts: string[]) => {
+    // 1. Normalize command line arguments first to prevent quote-based filter bypasses (CWE-180)
+    const normalizedTokens = parseCommandLine(cmdParts);
+    if (normalizedTokens.length === 0) {
+      process.exit(0);
+    }
+
+    const normalizedCmd = normalizedTokens.join(' ');
     const rawCmd = cmdParts.join(' ');
+
     const config = loadConfig();
     const engine = new ToolGuardEngine(config);
 
-    const result: EvaluationResult = engine.evaluate(rawCmd);
+    // Evaluate normalized command that will actually execute, plus raw string
+    let result: EvaluationResult = engine.evaluate(normalizedCmd);
+    if (result.verdict === 'ALLOW') {
+      const rawResult = engine.evaluate(rawCmd);
+      if (rawResult.verdict !== 'ALLOW') {
+        result = rawResult;
+      }
+    }
 
     if (result.verdict === 'BLOCK') {
-      logger.log(rawCmd, result, false);
+      logger.log(normalizedCmd, result, false);
       console.error('\n' + pc.bgRed(pc.white(pc.bold(' 🛑 [ToolGuard] EXECUTION BLOCKED '))));
-      console.error(`${pc.red('Command:')}  ${rawCmd}`);
+      console.error(`${pc.red('Command:')}  ${normalizedCmd}`);
       console.error(`${pc.red('Reason:')}   ${result.reason}`);
       if (result.suggestedMitigation) {
         console.error(`${pc.cyan('Advice:')}   ${result.suggestedMitigation}`);
@@ -114,35 +130,22 @@ program
 
     if (result.verdict === 'PROMPT') {
       console.log('\n' + pc.yellow(pc.bold('⚠️  [ToolGuard] Sensitive Action Detected')));
-      console.log(`${pc.bold('Command:')}  ${rawCmd}`);
+      console.log(`${pc.bold('Command:')}  ${normalizedCmd}`);
       console.log(`${pc.bold('Risk:')}     ${formatRiskBadge(result.risk)}`);
       console.log(`${pc.bold('Reason:')}   ${result.reason}`);
 
       const approved = await promptConfirmation(pc.bold(pc.yellow('Allow this command to execute? [y/N]: ')));
       if (!approved) {
-        logger.log(rawCmd, result, false);
+        logger.log(normalizedCmd, result, false);
         console.log(pc.red('Execution cancelled by user.'));
         process.exit(1);
       }
     }
 
     // Proceed to execute preserving discrete argument list
-    logger.log(rawCmd, result, true);
+    logger.log(normalizedCmd, result, true);
 
-    // If passed as a single quoted string like "npm test", split by whitespace
-    let executable: string;
-    let args: string[];
-
-    if (cmdParts.length === 1 && cmdParts[0].trim().includes(' ')) {
-      const tokens = cmdParts[0].trim().match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
-      const cleaned = tokens.map(t => t.replace(/^["']|["']$/g, ''));
-      executable = cleaned[0] || cmdParts[0];
-      args = cleaned.slice(1);
-    } else {
-      executable = cmdParts[0];
-      args = cmdParts.slice(1);
-    }
-
+    const [executable, ...args] = normalizedTokens;
     const child = spawnSync(executable, args, {
       stdio: 'inherit',
       shell: false

@@ -70,26 +70,48 @@ export function startMcpProxy(config?: ToolGuardConfig, upstreamCommand?: string
 
       // Handle JSON-RPC batch array
       if (Array.isArray(parsed)) {
+        let hasBlock = false;
+        let blockedResult: EvaluationResult | null = null;
+        let blockedName: string | undefined;
+
         for (const item of parsed) {
           const result = evaluateSingleCall(item);
           if (result && result.verdict === 'BLOCK') {
-            logger.log({ toolName: item.params?.name, args: item.params?.arguments }, result, false);
-            const errorResponse = {
-              jsonrpc: '2.0',
-              id: item.id ?? null,
-              error: {
-                code: -32000,
-                message: `[ToolGuard Security Block] ${result.reason}`,
-                data: {
-                  risk: result.risk,
-                  ruleId: result.ruleId,
-                  mitigation: result.suggestedMitigation
-                }
-              }
-            };
-            process.stdout.write(JSON.stringify(errorResponse) + '\n');
-            return;
+            hasBlock = true;
+            blockedResult = result;
+            blockedName = item.params?.name;
+            logger.log({ toolName: blockedName || 'mcp_tool', args: item.params?.arguments }, result, false);
+            break;
           }
+        }
+
+        if (hasBlock && blockedResult) {
+          // Return a JSON-RPC response for every request in the batch that has an ID (omit notifications)
+          const batchResponses = parsed
+            .filter((item: any) => item && item.id !== undefined && item.id !== null)
+            .map((item: any) => {
+              const isCulprit = item.method === 'tools/call' && item.params?.name === blockedName;
+              return {
+                jsonrpc: '2.0',
+                id: item.id,
+                error: {
+                  code: -32000,
+                  message: isCulprit
+                    ? `[ToolGuard Security Block] ${blockedResult!.reason}`
+                    : '[ToolGuard Security Block] Batch rejected due to blocked tool call in transaction',
+                  data: {
+                    risk: blockedResult!.risk,
+                    ruleId: blockedResult!.ruleId,
+                    mitigation: blockedResult!.suggestedMitigation
+                  }
+                }
+              };
+            });
+
+          if (batchResponses.length > 0) {
+            process.stdout.write(JSON.stringify(batchResponses) + '\n');
+          }
+          return;
         }
       } else {
         // Handle single JSON-RPC call

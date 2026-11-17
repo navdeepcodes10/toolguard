@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { ToolGuardEngine } from '../core/engine';
 import { generateShellHook } from '../cli/hook';
+import { parseCommandLine } from '../cli/tokenizer';
 
 describe('ToolGuard Security Engine', () => {
   const engine = new ToolGuardEngine();
@@ -141,6 +142,23 @@ describe('ToolGuard Security Engine', () => {
       const hook = generateShellHook('fish');
       assert.ok(hook.includes('function tg'));
       assert.ok(hook.includes('function rm'));
+    });
+  });
+
+  describe('Command Line Tokenizer', () => {
+    it('should handle embedded quote parameters like node --eval="console.log(1)"', () => {
+      const tokens = parseCommandLine(['node', '--eval="console.log(1)"']);
+      assert.deepStrictEqual(tokens, ['node', '--eval=console.log(1)']);
+    });
+
+    it('should normalize wholly quoted binaries like "rm" -rf /path', () => {
+      const tokens = parseCommandLine(['"rm"', '-rf', '/path']);
+      assert.deepStrictEqual(tokens, ['rm', '-rf', '/path']);
+    });
+
+    it('should handle single quoted strings like "npm test"', () => {
+      const tokens = parseCommandLine(['npm test']);
+      assert.deepStrictEqual(tokens, ['npm', 'test']);
     });
   });
 });
