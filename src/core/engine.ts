@@ -128,7 +128,22 @@ export class ToolGuardEngine {
       }
     }
 
-    // 6. AST Command Chain & Subshell Decomposition (&&, ||, ;, |, $(...))
+    // 6. Target Path Protection & Workspace Sandboxing Check (Evaluated before deferring to PROMPTs)
+    if (payload.targetPath) {
+      const wsRoot = this.config.sandboxWorkspace ? (this.config.workspaceRoot || process.cwd()) : undefined;
+      const pathCheck = isPathProtected(payload.targetPath, this.config.protectedPaths, wsRoot);
+      if (pathCheck.isProtected) {
+        return {
+          verdict: 'BLOCK',
+          risk: 'HIGH',
+          reason: pathCheck.reason || 'Protected file path access blocked',
+          suggestedMitigation: 'Isolate operations within the project workspace.',
+          timestamp
+        };
+      }
+    }
+
+    // 7. AST Command Chain & Subshell Decomposition (&&, ||, ;, |, $(...))
     const atomicSegments = commandStr ? decomposeCommands(commandStr) : [];
     if (atomicSegments.length > 1 || atomicSegments.some(s => s.isSubshell)) {
       let highestRiskPrompt: EvaluationResult | null = null;
@@ -154,21 +169,6 @@ export class ToolGuardEngine {
 
       if (highestRiskPrompt) {
         return highestRiskPrompt;
-      }
-    }
-
-    // 7. Target Path Protection & Workspace Sandboxing Check
-    if (payload.targetPath) {
-      const wsRoot = this.config.sandboxWorkspace ? (this.config.workspaceRoot || process.cwd()) : undefined;
-      const pathCheck = isPathProtected(payload.targetPath, this.config.protectedPaths, wsRoot);
-      if (pathCheck.isProtected) {
-        return {
-          verdict: 'BLOCK',
-          risk: 'HIGH',
-          reason: pathCheck.reason || 'Protected file path access blocked',
-          suggestedMitigation: 'Isolate operations within the project workspace.',
-          timestamp
-        };
       }
     }
 

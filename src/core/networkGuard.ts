@@ -1,4 +1,4 @@
-import { EvaluationResult, RiskLevel } from '../types';
+import { RiskLevel } from '../types';
 
 export interface NetworkGuardConfig {
   allowedDomains?: string[];
@@ -27,27 +27,58 @@ export const DEFAULT_ALLOWED_DOMAINS = [
 ];
 
 /**
- * Extracts target hostnames, URLs, or IP addresses from network commands (curl, wget, etc.)
+ * Extracts target hostnames using the WHATWG URL parser and smart CLI argument parsing.
+ * Eliminates SSRF bypasses via userinfo (http://x@169.254.169.254), hex/dword IPs, and option confusion.
  */
 export function extractNetworkTargets(command: string): string[] {
   const targets: string[] = [];
 
-  // Match URLs (http, https, ftp, git)
-  const urlRegex = /\b(?:https?|ftp|git):\/\/([a-zA-Z0-9_\-\.]+)(?::\d+)?(?:\/[^\s"']*)?/gi;
+  // 1. Capture full URL tokens: https?://..., ftp://..., git://...
+  const urlTokenRegex = /\b(?:https?|ftp|git):\/\/[^\s"']+/gi;
   let match: RegExpExecArray | null;
 
-  while ((match = urlRegex.exec(command)) !== null) {
-    if (match[1]) {
-      targets.push(match[1].toLowerCase());
+  while ((match = urlTokenRegex.exec(command)) !== null) {
+    try {
+      const parsed = new URL(match[0]);
+      let hostname = parsed.hostname.toLowerCase();
+      // Strip trailing dot if present (e.g., example.com.)
+      if (hostname.endsWith('.')) {
+        hostname = hostname.slice(0, -1);
+      }
+      // Remove bracket enclosing for IPv6 literals
+      if (hostname.startsWith('[') && hostname.endsWith(']')) {
+        hostname = hostname.slice(1, -1);
+      }
+      if (hostname && !targets.includes(hostname)) {
+        targets.push(hostname);
+      }
+    } catch {
+      // Ignore invalid URL tokens
     }
   }
 
-  // Match bare IPs or hostnames passed to ping, nc, ncat, telnet, curl, wget
-  const hostParamRegex = /\b(?:curl|wget|nc|ncat|netcat|ping|ssh|scp)\s+(?:-[a-zA-Z0-9\-_=]+\s+)*([a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9_\-\.]+)/gi;
-  while ((match = hostParamRegex.exec(command)) !== null) {
-    const host = match[1].toLowerCase();
-    if (!host.startsWith('-') && !targets.includes(host)) {
-      targets.push(host);
+  // 2. If no URLs were found, check bare host commands (ping, nc, ncat, telnet, ssh, scp)
+  // Skip options that take parameters (-o, -O, -H, -d, -X, -A, -u, -p, -i)
+  if (targets.length === 0) {
+    const tokens = command.trim().split(/\s+/);
+    const optionsWithArgs = new Set(['-o', '-O', '-H', '-d', '-X', '-A', '-u', '-p', '-i', '-e', '-m', '--output']);
+
+    for (let i = 1; i < tokens.length; i++) {
+      const token = tokens[i];
+      const prev = tokens[i - 1];
+
+      if (optionsWithArgs.has(prev)) {
+        continue;
+      }
+      if (token.startsWith('-')) {
+        continue;
+      }
+
+      // Check if token resembles a domain or IP (excluding simple file names like file.txt)
+      const isDomainOrIp = /^[a-zA-Z0-9_\-\.]+\.[a-zA-Z]{2,}$/.test(token) || isIpAddress(token);
+      if (isDomainOrIp && !targets.includes(token.toLowerCase())) {
+        targets.push(token.toLowerCase());
+      }
     }
   }
 
@@ -55,12 +86,20 @@ export function extractNetworkTargets(command: string): string[] {
 }
 
 /**
- * Checks if a target host is an IPv4 or IPv6 address
+ * Checks if a target host is an IPv4 or IPv6 address (including dword/hex decimal forms)
  */
 export function isIpAddress(host: string): boolean {
-  // IPv4
+  // IPv4 standard
   const ipv4Regex = /^(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-  return ipv4Regex.test(host) || host.includes(':');
+  if (ipv4Regex.test(host)) return true;
+
+  // IPv6
+  if (host.includes(':')) return true;
+
+  // Dword integer or hex representation of IP
+  if (/^\d{8,10}$/.test(host) || /^0x[0-9a-fA-F]{8}$/.test(host)) return true;
+
+  return false;
 }
 
 /**
@@ -73,8 +112,14 @@ export function evaluateNetworkTarget(
   const normalized = target.toLowerCase();
 
   // 1. Cloud Instance Metadata SSRF Protection (Critical)
+  // Covers 169.254.169.254, dword (2852039166), and hex (0xa9fea9fe)
   if (config?.blockCloudMetadata !== false) {
-    if (normalized === CLOUD_METADATA_IP || normalized.includes('169.254.169.254')) {
+    if (
+      normalized === CLOUD_METADATA_IP ||
+      normalized === '2852039166' ||
+      normalized === '0xa9fea9fe' ||
+      normalized.includes('169.254.169.254')
+    ) {
       return {
         blocked: true,
         risk: 'CRITICAL',
@@ -85,12 +130,13 @@ export function evaluateNetworkTarget(
 
   // 2. User-configured blocked domains
   if (config?.blockedDomains) {
-    for (const blocked of config.blockedDomains) {
+    for (const rawBlocked of config.blockedDomains) {
+      const blocked = rawBlocked.toLowerCase().trim();
       if (normalized === blocked || normalized.endsWith('.' + blocked)) {
         return {
           blocked: true,
           risk: 'HIGH',
-          reason: `Outbound connection to explicitly blocked domain '${blocked}'`
+          reason: `Outbound connection to explicitly blocked domain '${rawBlocked}'`
         };
       }
     }
@@ -98,7 +144,6 @@ export function evaluateNetworkTarget(
 
   // 3. Raw IP Address blocking (prevents bypassing DNS checks with direct IPs)
   if (config?.blockRawIPs && isIpAddress(normalized)) {
-    // Exclude localhost/127.0.0.1 if specifically needed, but default block external raw IPs
     if (normalized !== '127.0.0.1' && normalized !== 'localhost') {
       return {
         blocked: true,
@@ -110,9 +155,11 @@ export function evaluateNetworkTarget(
 
   // 4. Allowed domains whitelist (if strict whitelist is configured)
   if (config?.allowedDomains && config.allowedDomains.length > 0) {
-    const isWhitelisted = config.allowedDomains.some(
-      allowed => normalized === allowed || normalized.endsWith('.' + allowed)
-    );
+    const isWhitelisted = config.allowedDomains.some(rawAllowed => {
+      const allowed = rawAllowed.toLowerCase().trim();
+      return normalized === allowed || normalized.endsWith('.' + allowed);
+    });
+
     if (!isWhitelisted) {
       return {
         blocked: true,

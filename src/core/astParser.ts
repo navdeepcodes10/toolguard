@@ -129,8 +129,9 @@ export function decomposeCommands(commandLine: string): AtomicCommand[] {
 }
 
 /**
- * Checks for obfuscated shell execution via base64 decoding
+ * Checks for obfuscated shell execution via base64 decoding,
+ * covering bare interpreters, path-prefixed binaries (/bin/sh), sudo, and python3.
  */
 export function detectBase64Execution(command: string): boolean {
-  return /\b(base64\s+(-d|--decode)|openssl\s+base64\s+-d)\b.*\|\s*(sh|bash|zsh|python|node)\b/i.test(command);
+  return /\b(base64\s+(-d|--decode)|openssl\s+base64\s+-d)\b.*\|\s*(sudo\s+)?(?:(?:\/[\w.-]+)+\/)?(sh|bash|zsh|python[23]?|node)\b/i.test(command);
 }

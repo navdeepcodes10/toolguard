@@ -208,6 +208,15 @@ describe('ToolGuard Security Engine', () => {
       const result = engine.evaluate('echo cm0gLXJmIC8= | base64 -d | sh');
       assert.strictEqual(result.verdict, 'BLOCK');
       assert.strictEqual(result.risk, 'CRITICAL');
+
+      const pathResult = engine.evaluate('echo cm0gLXJmIC8= | base64 -d | /bin/sh');
+      assert.strictEqual(pathResult.verdict, 'BLOCK');
+
+      const sudoResult = engine.evaluate('echo cm0gLXJmIC8= | base64 -d | sudo bash');
+      assert.strictEqual(sudoResult.verdict, 'BLOCK');
+
+      const pyResult = engine.evaluate('echo cm0gLXJmIC8= | base64 -d | python3');
+      assert.strictEqual(pyResult.verdict, 'BLOCK');
     });
 
     it('should strip environment prefixes and BLOCK destructive commands', () => {
@@ -222,6 +231,22 @@ describe('ToolGuard Security Engine', () => {
       assert.strictEqual(result.verdict, 'BLOCK');
       assert.strictEqual(result.risk, 'CRITICAL');
       assert.ok(result.reason.includes('Metadata Service'));
+
+      const userinfoResult = engine.evaluate('curl http://admin@169.254.169.254/latest/meta-data/');
+      assert.strictEqual(userinfoResult.verdict, 'BLOCK');
+
+      const dwordResult = engine.evaluate('curl http://2852039166/latest/meta-data/');
+      assert.strictEqual(dwordResult.verdict, 'BLOCK');
+    });
+
+    it('should not treat option values like -o out.json as network targets', () => {
+      const netEngine = new ToolGuardEngine({
+        network: {
+          allowedDomains: ['api.github.com']
+        }
+      });
+      const result = netEngine.evaluate('curl -o out.json https://api.github.com/repos');
+      assert.notStrictEqual(result.verdict, 'BLOCK');
     });
 
     it('should BLOCK explicitly blocked domains', () => {

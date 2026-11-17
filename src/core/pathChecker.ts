@@ -21,19 +21,65 @@ export const SENSITIVE_FILE_NAMES = [
 ];
 
 /**
+ * Resolves a path, following symlinks through ancestors even if the target file does not yet exist.
+ * This prevents symlink escape attacks (CWE-59).
+ */
+export function resolveCanonicalPath(targetPath: string): string {
+  const absoluteTarget = path.resolve(targetPath);
+
+  // 1. If target exists, resolve its real path directly
+  if (fs.existsSync(absoluteTarget)) {
+    return fs.realpathSync(absoluteTarget);
+  }
+
+  // 2. Check for dangling symlink at the target itself
+  try {
+    const stat = fs.lstatSync(absoluteTarget);
+    if (stat.isSymbolicLink()) {
+      const linkTarget = fs.readlinkSync(absoluteTarget);
+      const resolvedLink = path.isAbsolute(linkTarget)
+        ? linkTarget
+        : path.resolve(path.dirname(absoluteTarget), linkTarget);
+      return resolveCanonicalPath(resolvedLink);
+    }
+  } catch {
+    // Target does not exist as symlink either
+  }
+
+  // 3. Walk up ancestors to find the nearest existing directory
+  const parts = absoluteTarget.split(path.sep);
+  let existingAncestor = absoluteTarget;
+  const tailParts: string[] = [];
+
+  while (existingAncestor && existingAncestor !== path.dirname(existingAncestor)) {
+    existingAncestor = path.dirname(existingAncestor);
+    const base = path.basename(absoluteTarget.slice(0, existingAncestor.length + path.basename(existingAncestor).length + 1));
+    if (fs.existsSync(existingAncestor)) {
+      try {
+        const canonicalAncestor = fs.realpathSync(existingAncestor);
+        const relativeTail = path.relative(existingAncestor, absoluteTarget);
+        return path.resolve(canonicalAncestor, relativeTail);
+      } catch {
+        break;
+      }
+    }
+  }
+
+  return absoluteTarget;
+}
+
+/**
  * Validates that a path stays strictly inside the designated workspace boundary,
- * preventing symlink escapes and directory traversal.
+ * preventing symlink escapes (CWE-59) and directory traversal.
  */
 export function isWithinWorkspace(targetPath: string, workspaceRoot: string): { allowed: boolean; reason?: string } {
   try {
-    const normRoot = path.resolve(workspaceRoot);
-    let resolvedTarget: string;
+    const resolvedRoot = path.resolve(workspaceRoot);
+    const normRoot = fs.existsSync(resolvedRoot)
+      ? fs.realpathSync(resolvedRoot)
+      : resolvedRoot;
 
-    if (fs.existsSync(targetPath)) {
-      resolvedTarget = fs.realpathSync(targetPath);
-    } else {
-      resolvedTarget = path.resolve(targetPath);
-    }
+    const resolvedTarget = resolveCanonicalPath(targetPath);
 
     if (resolvedTarget !== normRoot && !resolvedTarget.startsWith(normRoot + path.sep)) {
       return {
