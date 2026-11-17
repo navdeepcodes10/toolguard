@@ -10,7 +10,7 @@ Give autonomous AI tools the freedom to read code and run tests at lightning spe
 
 ---
 
-## ⚡ The Big Idea (Explain Like I'm 5)
+## ⚡ How It Works
 
 Think of your AI assistant as a smart robot intern working on your computer.
 
