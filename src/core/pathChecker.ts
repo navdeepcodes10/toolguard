@@ -66,20 +66,31 @@ export function resolveComponentsInOrder(startDir: string, targetPath: string, d
       current = fs.realpathSync(candidate);
     } else {
       // Check for dangling or missing symlink at candidate
+      let isSymlink = false;
+      let rawLink = '';
+
       try {
         const stat = fs.lstatSync(candidate);
         if (stat.isSymbolicLink()) {
-          const rawLink = fs.readlinkSync(candidate);
-          // Resolve symlink target in filesystem order recursively
-          const linkTarget = path.isAbsolute(rawLink)
-            ? rawLink
-            : path.join(path.dirname(candidate), rawLink);
-          current = resolveComponentsInOrder(path.dirname(candidate), linkTarget, depth + 1);
-          continue;
+          isSymlink = true;
+          rawLink = fs.readlinkSync(candidate);
         }
       } catch {
-        // Not a symlink, keep candidate path
+        // Expected lookup failure (file does not exist as symlink either)
       }
+
+      if (isSymlink) {
+        // Resolve symlink target in filesystem order recursively, passing rawLink unchanged
+        // to avoid lexical normalization of .. segments (CWE-59).
+        // Recursive errors (e.g., depth limit) bubble up to isWithinWorkspace (CWE-674).
+        const start = path.isAbsolute(rawLink)
+          ? (path.parse(rawLink).root || (isWindows ? 'C:\\' : '/'))
+          : path.dirname(candidate);
+
+        current = resolveComponentsInOrder(start, rawLink, depth + 1);
+        continue;
+      }
+
       current = candidate;
     }
   }
