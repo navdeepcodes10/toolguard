@@ -237,6 +237,43 @@ describe('ToolGuard Security Engine', () => {
 
       const dwordResult = engine.evaluate('curl http://2852039166/latest/meta-data/');
       assert.strictEqual(dwordResult.verdict, 'BLOCK');
+
+      const ipv4MappedResult = engine.evaluate('curl http://[::ffff:169.254.169.254]/latest/meta-data/');
+      assert.strictEqual(ipv4MappedResult.verdict, 'BLOCK');
+
+      const awsIpv6Result = engine.evaluate('curl http://[fd00:ec2::254]/latest/meta-data/');
+      assert.strictEqual(awsIpv6Result.verdict, 'BLOCK');
+    });
+
+    it('should not treat non-network commands like cat package.json as network targets', () => {
+      const netEngine = new ToolGuardEngine({
+        network: {
+          allowedDomains: ['github.com']
+        }
+      });
+      const catResult = netEngine.evaluate('cat package.json');
+      assert.strictEqual(catResult.verdict, 'ALLOW');
+    });
+
+    it('should not bypass blocked domains with redirects like curl http://evil.com>out.txt', () => {
+      const netEngine = new ToolGuardEngine({
+        network: {
+          blockedDomains: ['evil.com']
+        }
+      });
+      const redirectResult = netEngine.evaluate('curl http://evil.com>out.txt');
+      assert.strictEqual(redirectResult.verdict, 'BLOCK');
+    });
+
+    it('should evaluate multiple hosts in a single command like curl https://api.github.com evil.com', () => {
+      const netEngine = new ToolGuardEngine({
+        network: {
+          allowedDomains: ['github.com', 'api.github.com']
+        }
+      });
+      const multiResult = netEngine.evaluate('curl https://api.github.com evil.com');
+      assert.strictEqual(multiResult.verdict, 'BLOCK');
+      assert.ok(multiResult.reason.includes('evil.com'));
     });
 
     it('should not treat option values like -o out.json as network targets', () => {

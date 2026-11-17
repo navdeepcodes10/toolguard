@@ -69,6 +69,34 @@ export function resolveCanonicalPath(targetPath: string): string {
 }
 
 /**
+ * Resolves path components in strict filesystem order, ensuring that parent-directory (..)
+ * segments apply to the real directory reached through symlinks rather than collapsing lexically (CWE-59).
+ */
+export function resolveComponentsInOrder(startDir: string, relativePath: string): string {
+  const parts = relativePath.split(/[\\/]+/).filter(Boolean);
+  let current = fs.existsSync(startDir) ? fs.realpathSync(startDir) : startDir;
+
+  for (const part of parts) {
+    if (part === '.') continue;
+    if (part === '..') {
+      current = path.dirname(current);
+      if (fs.existsSync(current)) {
+        current = fs.realpathSync(current);
+      }
+    } else {
+      const candidate = path.join(current, part);
+      if (fs.existsSync(candidate)) {
+        current = fs.realpathSync(candidate);
+      } else {
+        current = candidate;
+      }
+    }
+  }
+
+  return current;
+}
+
+/**
  * Validates that a path stays strictly inside the designated workspace boundary,
  * preventing symlink escapes (CWE-59) and directory traversal.
  */
@@ -79,7 +107,12 @@ export function isWithinWorkspace(targetPath: string, workspaceRoot: string): { 
       ? fs.realpathSync(resolvedRoot)
       : resolvedRoot;
 
-    const resolvedTarget = resolveCanonicalPath(targetPath);
+    let resolvedTarget: string;
+    if (path.isAbsolute(targetPath)) {
+      resolvedTarget = resolveCanonicalPath(targetPath);
+    } else {
+      resolvedTarget = resolveComponentsInOrder(normRoot, targetPath);
+    }
 
     if (resolvedTarget !== normRoot && !resolvedTarget.startsWith(normRoot + path.sep)) {
       return {
