@@ -13,8 +13,8 @@ export function parseCommandLine(cmdParts: string[]): string[] {
     return [];
   }
 
-  const full = cmdParts[0].trim();
-  if (!full) return [];
+  const full = cmdParts[0];
+  if (!full || !full.trim()) return [];
 
   const args: string[] = [];
   let current = '';
@@ -51,8 +51,13 @@ export function parseCommandLine(cmdParts: string[]): string[] {
       }
       if (char === '\\') {
         const next = full[i + 1];
-        // In POSIX double quotes, backslash only escapes $, `, ", \, and newline
-        if (next === '$' || next === '`' || next === '"' || next === '\\' || next === '\n') {
+        // POSIX line continuation in double quotes: backslash + LF is removed completely
+        if (next === '\n') {
+          i++; // skip LF
+          continue;
+        }
+        // In POSIX double quotes, backslash only escapes $, `, ", and \
+        if (next === '$' || next === '`' || next === '"' || next === '\\') {
           escape = true;
           hasToken = true;
           continue;
@@ -65,6 +70,12 @@ export function parseCommandLine(cmdParts: string[]): string[] {
 
     // Unquoted state
     if (char === '\\') {
+      const next = full[i + 1];
+      // POSIX line continuation outside quotes: backslash + LF is removed completely
+      if (next === '\n') {
+        i++; // skip LF
+        continue;
+      }
       escape = true;
       hasToken = true;
       continue;

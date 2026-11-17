@@ -151,6 +151,16 @@ describe('ToolGuard Security Engine', () => {
       assert.deepStrictEqual(tokens, ['printf', '%s', 'report 2026.txt']);
     });
 
+    it('should preserve escaped trailing whitespace', () => {
+      const tokens = parseCommandLine(['printf %s report\\ ']);
+      assert.deepStrictEqual(tokens, ['printf', '%s', 'report ']);
+    });
+
+    it('should remove backslash-LF line continuations in double quotes', () => {
+      const tokens = parseCommandLine(['printf "%s" "a\\\nb"']);
+      assert.deepStrictEqual(tokens, ['printf', '%s', 'ab']);
+    });
+
     it('should retain empty quoted arguments', () => {
       const tokens = parseCommandLine(['printf "<%s><%s>" "" x']);
       assert.deepStrictEqual(tokens, ['printf', '<%s><%s>', '', 'x']);
