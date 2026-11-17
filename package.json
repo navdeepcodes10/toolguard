@@ -1,0 +1,40 @@
+{
+  "name": "toolguard",
+  "version": "0.1.0",
+  "description": "The open-source security firewall & permission proxy for AI coding agents and MCP servers",
+  "main": "dist/index.js",
+  "bin": {
+    "toolguard": "dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli/index.js",
+    "dev": "tsc -w",
+    "test": "node --test --test-reporter=spec dist/tests/**/*.test.js",
+    "pretest": "tsc"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "security",
+    "firewall",
+    "mcp",
+    "model-context-protocol",
+    "claude-code",
+    "cursor",
+    "guardrails",
+    "safety"
+  ],
+  "author": "Navdeep Singh <navdeep19619@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^13.1.0",
+    "js-yaml": "^4.1.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.10.1",
+    "typescript": "^5.7.2"
+  }
+}
