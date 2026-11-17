@@ -34,6 +34,7 @@ export interface ToolCallPayload {
 export interface ToolGuardConfig {
   version: string;
   mode: 'enforce' | 'audit' | 'interactive';
+  presets?: string[];
   customRules?: SecurityRule[];
   allowedCommands?: string[];
   blockedCommands?: string[];

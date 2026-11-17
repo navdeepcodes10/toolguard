@@ -19,16 +19,19 @@ A phased plan for the development, ecosystem integration, and community growth o
 
 ---
 
-## 📍 Phase 2: Packaging, npm Release & Agent Integrations (Next Up 🚀)
+## 📍 Phase 2: Packaging, npm Release & Agent Integrations (Active 🚀)
+- [x] **Lightweight npm Package Spec:** Reduced tarball size to < 14 KB with strict whitelist.
+- [x] **Framework Security Presets:**
+  - `docker` (Blocks `--privileged`, docker.sock mount, host root mount)
+  - `node` (Blocks piped network execution `curl | sh`, prompts on `npm publish`)
+  - `python` (Blocks `--break-system-packages`)
+- [x] **IDE & Agent Integration Guides:**
+  - [Cursor IDE Guide](./integrations/cursor.md) (`.cursorrules` configuration)
+  - [Claude Code & MCP Guide](./integrations/claude-code.md) (JSON-RPC stdio proxy setup)
 - [ ] **Publish to npm Registry:**
-  - Publish `@toolguard/cli` or `toolguard` so any developer can run `npx toolguard` without local setup.
-- [ ] **IDE & Agent Guides:**
-  - Add configuration guides for **Cursor IDE**, **Claude Code**, and **Antigravity**.
-  - Show how to drop ToolGuard into `.cursorrules` or `mcpServers` config.
-- [ ] **Framework Presets:**
-  - Pre-packaged rule packs for common stacks (`preset-node`, `preset-python`, `preset-docker`, `preset-rails`).
+  - Execute `npm publish` once npm account token is linked.
 - [ ] **One-Command Shell Hook:**
-  - Allow developers to alias or hook `toolguard` into subshells easily.
+  - Alias or hook toolguard transparently into active shell sub-processes.
 
 ---
 

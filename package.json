@@ -6,12 +6,18 @@
   "bin": {
     "toolguard": "dist/cli/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "ROADMAP.md"
+  ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/cli/index.js",
+    "prepack": "npm run build",
     "start": "node dist/cli/index.js",
     "dev": "tsc -w",
     "test": "node --test --test-reporter=spec dist/tests/**/*.test.js",
-    "pretest": "tsc"
+    "pretest": "tsc && chmod +x dist/cli/index.js"
   },
   "keywords": [
     "ai",

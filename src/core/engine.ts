@@ -7,6 +7,7 @@ import {
   ToolGuardConfig
 } from '../types';
 import { DEFAULT_RULES, SAFE_COMMAND_PATTERNS } from './defaultRules';
+import { PRESET_MAP } from '../presets';
 import { detectSecrets } from './secretDetector';
 import { isPathProtected } from './pathChecker';
 
@@ -22,9 +23,21 @@ export class ToolGuardEngine {
       ...config
     };
 
-    // Combine custom rules with default rules
+    // Collect preset rules
+    const presetRules: SecurityRule[] = [];
+    if (this.config.presets && Array.isArray(this.config.presets)) {
+      for (const presetName of this.config.presets) {
+        const found = PRESET_MAP[presetName.toLowerCase()];
+        if (found) {
+          presetRules.push(...found);
+        }
+      }
+    }
+
+    // Combine custom rules, presets, and default rules
     this.rules = [
       ...(this.config.customRules || []),
+      ...presetRules,
       ...DEFAULT_RULES
     ];
   }

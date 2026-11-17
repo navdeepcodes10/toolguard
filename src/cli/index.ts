@@ -14,6 +14,7 @@ import { AuditLogger } from '../logger/audit';
 import { EvaluationResult, RiskLevel } from '../types';
 
 import { startMcpProxy } from '../mcp/proxy';
+import { PRESET_MAP } from '../presets';
 
 const program = new Command();
 const logger = new AuditLogger();
@@ -182,6 +183,26 @@ program
       }
     }
     console.log(pc.dim('─'.repeat(60)) + '\n');
+  });
+
+// Command: presets
+program
+  .command('presets')
+  .description('List available community security presets (docker, node, python)')
+  .action(() => {
+    console.log('\n' + pc.bold(pc.cyan('🛡️  ToolGuard Available Security Presets')));
+    console.log(pc.dim('─'.repeat(55)));
+
+    for (const [name, rules] of Object.entries(PRESET_MAP)) {
+      console.log(`${pc.bold(pc.green(name.toUpperCase()))} ${pc.dim(`(${rules.length} rules)`)}`);
+      for (const rule of rules) {
+        const badge = rule.action === 'BLOCK' ? pc.red('[BLOCK]') : pc.yellow('[PROMPT]');
+        console.log(`  ${badge} ${pc.white(rule.name)}: ${pc.dim(rule.description)}`);
+      }
+      console.log('');
+    }
+    console.log(pc.dim('Enable presets in your .toolguard.yaml:'));
+    console.log(pc.cyan('presets:\n  - docker\n  - node\n  - python\n'));
   });
 
 // Command: mcp-proxy

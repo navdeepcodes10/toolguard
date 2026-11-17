@@ -42,19 +42,34 @@ Wrap autonomous commands with the firewall:
 npx toolguard run "npm test"
 ```
 
-### 3. Initialize Custom Repository Rules
+### 3. Community Rule Presets
+List and enable pre-configured security packs for Docker, Node.js, and Python:
+
+```bash
+npx toolguard presets
+```
+
+### 4. Initialize Custom Repository Rules
 Create a `.toolguard.yaml` configuration in your repo:
 
 ```bash
 npx toolguard init
 ```
 
-### 4. Review Audit History
+### 5. Review Audit History
 See past executions, blocked commands, and timestamps:
 
 ```bash
 npx toolguard audit
 ```
+
+---
+
+## 🔌 Integrations
+
+- [Cursor IDE Setup Guide](./integrations/cursor.md)
+- [Claude Code & MCP Setup Guide](./integrations/claude-code.md)
+
 
 ---
 
