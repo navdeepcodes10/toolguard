@@ -21,75 +21,51 @@ export const SENSITIVE_FILE_NAMES = [
 ];
 
 /**
- * Resolves a path, following symlinks through ancestors even if the target file does not yet exist.
- * This prevents symlink escape attacks (CWE-59).
- */
-export function resolveCanonicalPath(targetPath: string): string {
-  const absoluteTarget = path.resolve(targetPath);
-
-  // 1. If target exists, resolve its real path directly
-  if (fs.existsSync(absoluteTarget)) {
-    return fs.realpathSync(absoluteTarget);
-  }
-
-  // 2. Check for dangling symlink at the target itself
-  try {
-    const stat = fs.lstatSync(absoluteTarget);
-    if (stat.isSymbolicLink()) {
-      const linkTarget = fs.readlinkSync(absoluteTarget);
-      const resolvedLink = path.isAbsolute(linkTarget)
-        ? linkTarget
-        : path.resolve(path.dirname(absoluteTarget), linkTarget);
-      return resolveCanonicalPath(resolvedLink);
-    }
-  } catch {
-    // Target does not exist as symlink either
-  }
-
-  // 3. Walk up ancestors to find the nearest existing directory
-  const parts = absoluteTarget.split(path.sep);
-  let existingAncestor = absoluteTarget;
-  const tailParts: string[] = [];
-
-  while (existingAncestor && existingAncestor !== path.dirname(existingAncestor)) {
-    existingAncestor = path.dirname(existingAncestor);
-    const base = path.basename(absoluteTarget.slice(0, existingAncestor.length + path.basename(existingAncestor).length + 1));
-    if (fs.existsSync(existingAncestor)) {
-      try {
-        const canonicalAncestor = fs.realpathSync(existingAncestor);
-        const relativeTail = path.relative(existingAncestor, absoluteTarget);
-        return path.resolve(canonicalAncestor, relativeTail);
-      } catch {
-        break;
-      }
-    }
-  }
-
-  return absoluteTarget;
-}
-
-/**
  * Resolves path components in strict filesystem order, ensuring that parent-directory (..)
- * segments apply to the real directory reached through symlinks rather than collapsing lexically (CWE-59).
+ * segments apply to the real directory reached through symlinks rather than collapsing lexically (CWE-59),
+ * and following dangling symlinks to verify their true boundary.
  */
-export function resolveComponentsInOrder(startDir: string, relativePath: string): string {
-  const parts = relativePath.split(/[\\/]+/).filter(Boolean);
-  let current = fs.existsSync(startDir) ? fs.realpathSync(startDir) : startDir;
+export function resolveComponentsInOrder(startDir: string, targetPath: string): string {
+  const isAbs = path.isAbsolute(targetPath);
+  const parts = targetPath.split(/[\\/]+/).filter(Boolean);
+
+  let current = isAbs
+    ? (path.parse(targetPath).root || '/')
+    : (fs.existsSync(startDir) ? fs.realpathSync(startDir) : startDir);
 
   for (const part of parts) {
     if (part === '.') continue;
+
     if (part === '..') {
       current = path.dirname(current);
       if (fs.existsSync(current)) {
         current = fs.realpathSync(current);
       }
+      continue;
+    }
+
+    const candidate = path.join(current, part);
+
+    if (fs.existsSync(candidate)) {
+      current = fs.realpathSync(candidate);
     } else {
-      const candidate = path.join(current, part);
-      if (fs.existsSync(candidate)) {
-        current = fs.realpathSync(candidate);
-      } else {
-        current = candidate;
+      // Check for dangling symlinks (where target does not exist on disk)
+      try {
+        const stat = fs.lstatSync(candidate);
+        if (stat.isSymbolicLink()) {
+          const rawLink = fs.readlinkSync(candidate);
+          const resolvedLink = path.isAbsolute(rawLink)
+            ? rawLink
+            : path.resolve(path.dirname(candidate), rawLink);
+          current = fs.existsSync(resolvedLink)
+            ? fs.realpathSync(resolvedLink)
+            : resolvedLink;
+          continue;
+        }
+      } catch {
+        // Not a symlink, keep candidate path
       }
+      current = candidate;
     }
   }
 
@@ -98,7 +74,7 @@ export function resolveComponentsInOrder(startDir: string, relativePath: string)
 
 /**
  * Validates that a path stays strictly inside the designated workspace boundary,
- * preventing symlink escapes (CWE-59) and directory traversal.
+ * preventing symlink escapes (CWE-59), dangling link bypasses, and directory traversal.
  */
 export function isWithinWorkspace(targetPath: string, workspaceRoot: string): { allowed: boolean; reason?: string } {
   try {
@@ -107,12 +83,8 @@ export function isWithinWorkspace(targetPath: string, workspaceRoot: string): { 
       ? fs.realpathSync(resolvedRoot)
       : resolvedRoot;
 
-    let resolvedTarget: string;
-    if (path.isAbsolute(targetPath)) {
-      resolvedTarget = resolveCanonicalPath(targetPath);
-    } else {
-      resolvedTarget = resolveComponentsInOrder(normRoot, targetPath);
-    }
+    // Always resolve components in strict filesystem order to prevent lexical .. traversal bypasses
+    const resolvedTarget = resolveComponentsInOrder(normRoot, targetPath);
 
     if (resolvedTarget !== normRoot && !resolvedTarget.startsWith(normRoot + path.sep)) {
       return {

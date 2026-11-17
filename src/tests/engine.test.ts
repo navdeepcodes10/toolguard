@@ -243,6 +243,28 @@ describe('ToolGuard Security Engine', () => {
 
       const awsIpv6Result = engine.evaluate('curl http://[fd00:ec2::254]/latest/meta-data/');
       assert.strictEqual(awsIpv6Result.verdict, 'BLOCK');
+
+      const sudoMetadataResult = engine.evaluate('sudo curl 169.254.169.254');
+      assert.strictEqual(sudoMetadataResult.verdict, 'BLOCK');
+
+      const quotedIpResult = engine.evaluate('curl "169.254.169.254"');
+      assert.strictEqual(quotedIpResult.verdict, 'BLOCK');
+
+      const bracketedIpv6Result = engine.evaluate('curl [fd00:ec2::254]');
+      assert.strictEqual(bracketedIpv6Result.verdict, 'BLOCK');
+    });
+
+    it('should unwrap env prefixes and evaluate network targets', () => {
+      const netEngine = new ToolGuardEngine({
+        network: {
+          blockedDomains: ['evil.com']
+        }
+      });
+      const envResult = netEngine.evaluate('FOO=1 wget evil.com');
+      assert.strictEqual(envResult.verdict, 'BLOCK');
+
+      const quotedDomainResult = netEngine.evaluate("wget 'evil.com'");
+      assert.strictEqual(quotedDomainResult.verdict, 'BLOCK');
     });
 
     it('should not treat non-network commands like cat package.json as network targets', () => {

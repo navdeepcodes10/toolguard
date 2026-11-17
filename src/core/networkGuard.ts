@@ -32,6 +32,14 @@ const KNOWN_NETWORK_BINARIES = new Set([
   'curl', 'wget', 'nc', 'ncat', 'netcat', 'ping', 'ssh', 'scp', 'telnet', 'ftp', 'rsync', 'fetch'
 ]);
 
+const WRAPPER_COMMANDS = new Set([
+  'sudo', 'env', 'nohup', 'command', 'exec', 'xargs', 'timeout', 'time', 'doas'
+]);
+
+const WRAPPER_OPTIONS_WITH_ARGS = new Set([
+  '-u', '-g', '-C', '-D', '-h', '-p', '-t', '-k', '--user', '--group'
+]);
+
 /**
  * Checks if a target host is an IPv4 or IPv6 address using node's standard net.isIP
  */
@@ -75,6 +83,7 @@ export function normalizeIpTarget(host: string): string {
 
 /**
  * Extracts target hostnames using the WHATWG URL parser and gated CLI argument scanning.
+ * Unpacks environment variable prefixes (FOO=1) and wrapper commands (sudo, env, timeout).
  */
 export function extractNetworkTargets(command: string): string[] {
   const targets: string[] = [];
@@ -104,34 +113,75 @@ export function extractNetworkTargets(command: string): string[] {
     }
   }
 
-  // 2. Gated argument scan: only runs if the primary binary is a recognized network tool
+  // 2. Gated argument scan: unwraps env prefixes (FOO=1) and wrapper commands (sudo, env, timeout)
   const tokens = trimmed.split(/\s+/);
-  const binaryName = tokens[0]?.replace(/^.*[\\\/]/, '').toLowerCase();
+  let binaryIdx = 0;
 
-  if (KNOWN_NETWORK_BINARIES.has(binaryName)) {
-    const optionsWithArgs = new Set(['-o', '-O', '-H', '-d', '-X', '-A', '-u', '-p', '-i', '-e', '-m', '--output']);
+  // Skip leading env assignments
+  while (binaryIdx < tokens.length && /^[a-zA-Z_][a-zA-Z0-9_]*=/.test(tokens[binaryIdx])) {
+    binaryIdx++;
+  }
 
-    for (let i = 1; i < tokens.length; i++) {
-      const token = tokens[i];
-      const prev = tokens[i - 1];
+  // Skip wrapper commands and their options (e.g. sudo -u root, timeout 10)
+  while (binaryIdx < tokens.length) {
+    const candidate = tokens[binaryIdx]?.replace(/^.*[\\\/]/, '').toLowerCase();
+    if (WRAPPER_COMMANDS.has(candidate)) {
+      binaryIdx++;
+      // Skip wrapper options and their arguments
+      while (binaryIdx < tokens.length && tokens[binaryIdx].startsWith('-')) {
+        const opt = tokens[binaryIdx];
+        binaryIdx++;
+        if (WRAPPER_OPTIONS_WITH_ARGS.has(opt) && binaryIdx < tokens.length && !tokens[binaryIdx].startsWith('-')) {
+          binaryIdx++;
+        }
+      }
+      // If timeout or similar command has a duration parameter (number), skip it
+      if (candidate === 'timeout' && binaryIdx < tokens.length && /^\d+[smhd]?$/i.test(tokens[binaryIdx])) {
+        binaryIdx++;
+      }
+    } else {
+      break;
+    }
+  }
 
-      if (optionsWithArgs.has(prev)) continue;
-      if (token.startsWith('-')) continue;
+  if (binaryIdx < tokens.length) {
+    const binaryName = tokens[binaryIdx]?.replace(/^.*[\\\/]/, '').toLowerCase();
 
-      // Clean token of userinfo (user@...), port (:8080), path (/path), and redirects
-      let cleaned = token.replace(/^[a-zA-Z0-9_\-\.]+@/, ''); // strip user@
-      cleaned = cleaned.split(/[:\/?#<>;&|]/)[0].toLowerCase(); // strip port, path, redirects
-      if (cleaned.endsWith('.')) cleaned = cleaned.slice(0, -1);
-      if (cleaned.startsWith('[') && cleaned.endsWith(']')) cleaned = cleaned.slice(1, -1);
+    if (KNOWN_NETWORK_BINARIES.has(binaryName)) {
+      const optionsWithArgs = new Set(['-o', '-O', '-H', '-d', '-X', '-A', '-u', '-p', '-i', '-e', '-m', '--output']);
 
-      const normalized = normalizeIpTarget(cleaned);
+      for (let i = binaryIdx + 1; i < tokens.length; i++) {
+        let token = tokens[i];
+        const prev = tokens[i - 1];
 
-      // Validate if it is a domain with TLD or valid IP
-      const isDomain = /^[a-zA-Z0-9_\-\.]+\.[a-zA-Z]{2,}$/.test(normalized);
-      const isIp = isIpAddress(normalized);
+        if (optionsWithArgs.has(prev)) continue;
+        if (token.startsWith('-')) continue;
 
-      if ((isDomain || isIp) && !targets.includes(normalized)) {
-        targets.push(normalized);
+        // Remove surrounding or internal quotes first
+        token = token.replace(/["']/g, '');
+
+        // Extract bracketed IPv6 literals first before colon splitting (e.g. [fd00:ec2::254])
+        let hostCandidate = '';
+        const bracketMatch = /^\[([a-fA-F0-9:]+)\](?::\d+)?(?:\/.*)?$/.exec(token);
+        if (bracketMatch) {
+          hostCandidate = bracketMatch[1];
+        } else {
+          // Clean token of userinfo (user@...), port (:8080), path (/path), and redirects
+          let cleaned = token.replace(/^[a-zA-Z0-9_\-\.]+@/, ''); // strip user@
+          cleaned = cleaned.split(/[:\/?#<>;&|]/)[0].toLowerCase(); // strip port, path, redirects
+          if (cleaned.endsWith('.')) cleaned = cleaned.slice(0, -1);
+          hostCandidate = cleaned;
+        }
+
+        const normalized = normalizeIpTarget(hostCandidate);
+
+        // Validate if it is a domain with TLD or valid IP
+        const isDomain = /^[a-zA-Z0-9_\-\.]+\.[a-zA-Z]{2,}$/.test(normalized);
+        const isIp = isIpAddress(normalized);
+
+        if ((isDomain || isIp) && !targets.includes(normalized)) {
+          targets.push(normalized);
+        }
       }
     }
   }
