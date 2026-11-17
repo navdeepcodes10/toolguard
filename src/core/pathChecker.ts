@@ -20,18 +20,34 @@ export const SENSITIVE_FILE_NAMES = [
   /^service-account.*\.json$/
 ];
 
+const MAX_SYMLINK_DEPTH = 40;
+
 /**
  * Resolves path components in strict filesystem order, ensuring that parent-directory (..)
  * segments apply to the real directory reached through symlinks rather than collapsing lexically (CWE-59),
- * and following dangling symlinks to verify their true boundary.
+ * and following dangling symlinks recursively to verify their true boundary.
  */
-export function resolveComponentsInOrder(startDir: string, targetPath: string): string {
-  const isAbs = path.isAbsolute(targetPath);
-  const parts = targetPath.split(/[\\/]+/).filter(Boolean);
+export function resolveComponentsInOrder(startDir: string, targetPath: string, depth: number = 0): string {
+  if (depth > MAX_SYMLINK_DEPTH) {
+    throw new Error('Too many levels of symbolic links (possible symlink loop)');
+  }
 
-  let current = isAbs
-    ? (path.parse(targetPath).root || '/')
-    : (fs.existsSync(startDir) ? fs.realpathSync(startDir) : startDir);
+  const isWindows = process.platform === 'win32';
+  const sepRegex = isWindows ? /[\\/]+/ : /\/+/;
+  const isAbs = path.isAbsolute(targetPath);
+
+  let current: string;
+  let pathWithoutRoot = targetPath;
+
+  if (isAbs) {
+    const root = path.parse(targetPath).root || (isWindows ? 'C:\\' : '/');
+    current = fs.existsSync(root) ? fs.realpathSync(root) : root;
+    pathWithoutRoot = targetPath.slice(root.length);
+  } else {
+    current = fs.existsSync(startDir) ? fs.realpathSync(startDir) : startDir;
+  }
+
+  const parts = pathWithoutRoot.split(sepRegex).filter(Boolean);
 
   for (const part of parts) {
     if (part === '.') continue;
@@ -49,17 +65,16 @@ export function resolveComponentsInOrder(startDir: string, targetPath: string): 
     if (fs.existsSync(candidate)) {
       current = fs.realpathSync(candidate);
     } else {
-      // Check for dangling symlinks (where target does not exist on disk)
+      // Check for dangling or missing symlink at candidate
       try {
         const stat = fs.lstatSync(candidate);
         if (stat.isSymbolicLink()) {
           const rawLink = fs.readlinkSync(candidate);
-          const resolvedLink = path.isAbsolute(rawLink)
+          // Resolve symlink target in filesystem order recursively
+          const linkTarget = path.isAbsolute(rawLink)
             ? rawLink
-            : path.resolve(path.dirname(candidate), rawLink);
-          current = fs.existsSync(resolvedLink)
-            ? fs.realpathSync(resolvedLink)
-            : resolvedLink;
+            : path.join(path.dirname(candidate), rawLink);
+          current = resolveComponentsInOrder(path.dirname(candidate), linkTarget, depth + 1);
           continue;
         }
       } catch {

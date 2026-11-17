@@ -117,12 +117,15 @@ export function extractNetworkTargets(command: string): string[] {
   const tokens = trimmed.split(/\s+/);
   let binaryIdx = 0;
 
-  // Skip leading env assignments
-  while (binaryIdx < tokens.length && /^[a-zA-Z_][a-zA-Z0-9_]*=/.test(tokens[binaryIdx])) {
-    binaryIdx++;
-  }
+  const skipEnvAssignments = () => {
+    while (binaryIdx < tokens.length && /^[a-zA-Z_][a-zA-Z0-9_]*=/.test(tokens[binaryIdx])) {
+      binaryIdx++;
+    }
+  };
 
-  // Skip wrapper commands and their options (e.g. sudo -u root, timeout 10)
+  skipEnvAssignments();
+
+  // Skip wrapper commands and their options (e.g. sudo -u root, timeout -s TERM 10)
   while (binaryIdx < tokens.length) {
     const candidate = tokens[binaryIdx]?.replace(/^.*[\\\/]/, '').toLowerCase();
     if (WRAPPER_COMMANDS.has(candidate)) {
@@ -131,14 +134,23 @@ export function extractNetworkTargets(command: string): string[] {
       while (binaryIdx < tokens.length && tokens[binaryIdx].startsWith('-')) {
         const opt = tokens[binaryIdx];
         binaryIdx++;
+        // Check general wrapper options with args
         if (WRAPPER_OPTIONS_WITH_ARGS.has(opt) && binaryIdx < tokens.length && !tokens[binaryIdx].startsWith('-')) {
           binaryIdx++;
+          continue;
+        }
+        // Specific timeout signal option: -s or --signal
+        if (candidate === 'timeout' && (opt === '-s' || opt === '--signal') && binaryIdx < tokens.length) {
+          binaryIdx++;
+          continue;
         }
       }
-      // If timeout or similar command has a duration parameter (number), skip it
+      // If timeout has a duration parameter (e.g. 10 or 10s), skip it
       if (candidate === 'timeout' && binaryIdx < tokens.length && /^\d+[smhd]?$/i.test(tokens[binaryIdx])) {
         binaryIdx++;
       }
+      // Skip any env assignments that follow the wrapper (e.g. env FOO=1 wget ...)
+      skipEnvAssignments();
     } else {
       break;
     }
@@ -160,9 +172,9 @@ export function extractNetworkTargets(command: string): string[] {
         // Remove surrounding or internal quotes first
         token = token.replace(/["']/g, '');
 
-        // Extract bracketed IPv6 literals first before colon splitting (e.g. [fd00:ec2::254])
+        // Extract bracketed IPv6 literals first (including dotted IPv4-mapped like [::ffff:169.254.169.254])
         let hostCandidate = '';
-        const bracketMatch = /^\[([a-fA-F0-9:]+)\](?::\d+)?(?:\/.*)?$/.exec(token);
+        const bracketMatch = /^\[([a-fA-F0-9:\.]+)\](?::\d+)?(?:\/.*)?$/.exec(token);
         if (bracketMatch) {
           hostCandidate = bracketMatch[1];
         } else {
