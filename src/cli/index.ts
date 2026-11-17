@@ -15,6 +15,7 @@ import { EvaluationResult, RiskLevel } from '../types';
 
 import { startMcpProxy } from '../mcp/proxy';
 import { PRESET_MAP } from '../presets';
+import { generateShellHook, installShellHook } from './hook';
 
 const program = new Command();
 const logger = new AuditLogger();
@@ -183,6 +184,30 @@ program
       }
     }
     console.log(pc.dim('─'.repeat(60)) + '\n');
+  });
+
+// Command: hook
+program
+  .command('hook [shell]')
+  .description('Generate or install one-command shell integration (zsh, bash, fish)')
+  .option('-i, --install', 'Automatically append hook to ~/.zshrc or ~/.bashrc')
+  .action((shellArg, options) => {
+    const detectedShell = shellArg || (process.env.SHELL?.includes('zsh') ? 'zsh' : 'bash');
+
+    if (options.install) {
+      const res = installShellHook(detectedShell);
+      if (res.success) {
+        console.log(pc.green(`✔ ${res.message}`));
+        console.log(pc.dim('Restart your terminal or run: source ~/.zshrc (or ~/.bashrc)'));
+      } else {
+        console.error(pc.red(`✖ ${res.message}`));
+      }
+      return;
+    }
+
+    // Output raw script for eval "$(toolguard hook)"
+    const script = generateShellHook(detectedShell);
+    process.stdout.write(script);
   });
 
 // Command: presets

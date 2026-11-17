@@ -49,7 +49,18 @@ List and enable pre-configured security packs for Docker, Node.js, and Python:
 npx toolguard presets
 ```
 
-### 4. Initialize Custom Repository Rules
+### 4. One-Command Shell Shield
+Automatically shield commands in your terminal or subshell:
+
+```bash
+# Add to ~/.zshrc or ~/.bashrc
+eval "$(toolguard hook)"
+
+# Or install automatically
+toolguard hook --install
+```
+
+### 5. Initialize Custom Repository Rules
 Create a `.toolguard.yaml` configuration in your repo:
 
 ```bash

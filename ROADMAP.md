@@ -19,7 +19,7 @@ A phased plan for the development, ecosystem integration, and community growth o
 
 ---
 
-## 📍 Phase 2: Packaging, npm Release & Agent Integrations (Active 🚀)
+## 📍 Phase 2: Packaging, npm Release & Agent Integrations (Completed ✅)
 - [x] **Lightweight npm Package Spec:** Reduced tarball size to < 14 KB with strict whitelist.
 - [x] **Framework Security Presets:**
   - `docker` (Blocks `--privileged`, docker.sock mount, host root mount)
@@ -28,14 +28,14 @@ A phased plan for the development, ecosystem integration, and community growth o
 - [x] **IDE & Agent Integration Guides:**
   - [Cursor IDE Guide](./integrations/cursor.md) (`.cursorrules` configuration)
   - [Claude Code & MCP Guide](./integrations/claude-code.md) (JSON-RPC stdio proxy setup)
-- [ ] **Publish to npm Registry:**
-  - Execute `npm publish` once npm account token is linked.
-- [ ] **One-Command Shell Hook:**
-  - Alias or hook toolguard transparently into active shell sub-processes.
+- [x] **One-Command Shell Hook:**
+  - `toolguard hook` with transparent `rm` and `git` protection and `--install` flag.
+- [x] **Automated Release Pipeline:**
+  - Added GitHub Actions `.github/workflows/release.yml` for automated 1-click npm publishing.
 
 ---
 
-## 📍 Phase 3: AST Parsing & Network Sandboxing
+## 📍 Phase 3: AST Parsing & Network Sandboxing (Next Up 🚀)
 - [ ] **Abstract Syntax Tree (AST) Shell Parser:**
   - Move beyond regex matching to full shell AST parsing (handles command obfuscation, subshells, and piped commands like `echo aGVsbG8= | base64 -d | sh`).
 - [ ] **Network & Outbound URL Filter:**

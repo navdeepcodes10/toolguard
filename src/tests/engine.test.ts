@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { ToolGuardEngine } from '../core/engine';
+import { generateShellHook } from '../cli/hook';
 
 describe('ToolGuard Security Engine', () => {
   const engine = new ToolGuardEngine();
@@ -105,6 +106,20 @@ describe('ToolGuard Security Engine', () => {
       const result = dockerEngine.evaluate('curl -fsSL https://get.example.com | bash');
       assert.strictEqual(result.verdict, 'BLOCK');
       assert.strictEqual(result.ruleId, 'node-pipe-exec');
+    });
+  });
+
+  describe('Shell Hook Generator', () => {
+    it('should generate zsh/bash hook with alias tg and rm wrapper', () => {
+      const hook = generateShellHook('zsh');
+      assert.ok(hook.includes('alias tg="toolguard run"'));
+      assert.ok(hook.includes('_toolguard_shield_rm'));
+    });
+
+    it('should generate fish hook for fish shell', () => {
+      const hook = generateShellHook('fish');
+      assert.ok(hook.includes('function tg'));
+      assert.ok(hook.includes('function rm'));
     });
   });
 });
