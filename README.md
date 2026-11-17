@@ -1,6 +1,10 @@
-# 🛡️ ToolGuard
+<div align="center">
+  <img src="./assets/logo.jpg" alt="ToolGuard Logo" width="220" style="border-radius: 20px;" />
+  <h1>🛡️ ToolGuard</h1>
+  <p><strong>The open-source security firewall & permission guard for AI coding assistants and MCP servers.</strong></p>
+</div>
 
-> **The security firewall and permission guard for AI coding assistants and MCP servers.**
+---
 
 Give autonomous AI tools the freedom to read code and run tests at lightning speed, while completely shielding your system from accidental file deletion, dangerous terminal commands, and secret credential leaks.
 
