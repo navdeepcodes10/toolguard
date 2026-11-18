@@ -42,10 +42,10 @@ Think of your AI assistant as a smart robot intern working on your computer.
 Inspect what ToolGuard thinks of a command before running it:
 
 ```bash
-npx toolguard eval "git status"
+npx @navdeepcodes10/toolguard eval "git status"
 # Verdict: ALLOW (Risk: SAFE)
 
-npx toolguard eval "rm -rf /"
+npx @navdeepcodes10/toolguard eval "rm -rf /"
 # Verdict: BLOCK (Risk: CRITICAL)
 ```
 
@@ -53,14 +53,14 @@ npx toolguard eval "rm -rf /"
 Wrap autonomous commands with the firewall:
 
 ```bash
-npx toolguard run "npm test"
+npx @navdeepcodes10/toolguard run "npm test"
 ```
 
 ### 3. Community Rule Presets
 List and enable pre-configured security packs for Docker, Node.js, and Python:
 
 ```bash
-npx toolguard presets
+npx @navdeepcodes10/toolguard presets
 ```
 
 ### 4. One-Command Shell Shield
@@ -68,7 +68,7 @@ Automatically shield commands in your terminal or subshell:
 
 ```bash
 # Install globally so toolguard is available in your PATH
-npm install -g toolguard
+npm install -g @navdeepcodes10/toolguard
 
 # Add to ~/.zshrc or ~/.bashrc
 eval "$(toolguard hook)"
@@ -81,14 +81,14 @@ toolguard hook --install
 Create a `.toolguard.yaml` configuration in your repo:
 
 ```bash
-npx toolguard init
+npx @navdeepcodes10/toolguard init
 ```
 
-### 5. Review Audit History
+### 6. Review Audit History
 See past executions, blocked commands, and timestamps:
 
 ```bash
-npx toolguard audit
+npx @navdeepcodes10/toolguard audit
 ```
 
 ---
@@ -147,7 +147,7 @@ detectSecrets: true
 ## 📦 Use as an SDK in Custom Agents
 
 ```typescript
-import { ToolGuardEngine } from 'toolguard';
+import { ToolGuardEngine } from '@navdeepcodes10/toolguard';
 
 const engine = new ToolGuardEngine();
 const result = engine.evaluate('rm -rf /');

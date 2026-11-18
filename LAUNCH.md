@@ -91,6 +91,6 @@ Ready-to-use launch drafts, messaging hooks, and discussion points for sharing T
 **Tweet 5 (Get Started):**
 > Try it instantly:
 > ```bash
-> npx toolguard eval "rm -rf /"
+> npx @navdeepcodes10/toolguard eval "rm -rf /"
 > ```
 > Star the repo on GitHub: https://github.com/navdeepcodes10/toolguard

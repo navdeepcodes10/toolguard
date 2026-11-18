@@ -1,5 +1,5 @@
 {
-  "name": "toolguard",
+  "name": "@navdeepcodes10/toolguard",
   "version": "0.1.0",
   "description": "The open-source security firewall & permission proxy for AI coding agents and MCP servers",
   "main": "dist/index.js",
