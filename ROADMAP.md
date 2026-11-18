@@ -50,15 +50,20 @@ A phased plan for the development, ecosystem integration, and community growth o
 
 ---
 
-## 📍 Phase 4: Community Growth & Going Viral (Next Up 🚀)
-- [ ] **GitHub Polish:**
-  - Add interactive demo GIF or SVG terminal recording using `vhs`.
-  - Add GitHub release badges (npm version, test coverage, license).
-  - Add `CONTRIBUTING.md` guide for adding custom community rules.
-- [ ] **Public Launch:**
-  - Launch on **Hacker News (Show HN)**: *"Show HN: ToolGuard – A security firewall for AI coding agents"*.
-  - Share on Reddit (`r/LocalLLaMA`, `r/programming`, `r/ChatGPTCoding`, `r/node`).
-  - Share on X / Twitter targeting AI agent builders and DevSecOps practitioners.
+## 📍 Phase 4: Community Polish & Launch Preparation (Completed ✅)
+- [x] **GitHub Polish:**
+  - Added interactive demo SVG terminal recording (`assets/demo.svg`).
+  - Added GitHub release & status badges (CI passing, 40 tests, TypeScript 100%, Node >=18, MIT).
+  - Added [`CONTRIBUTING.md`](./CONTRIBUTING.md) guide for contributing custom security rules and presets.
+  - Added [`SECURITY.md`](./SECURITY.md) for responsible disclosure.
+- [x] **Launch Materials Prepared:**
+  - Authored Show HN announcement draft in [`LAUNCH.md`](./LAUNCH.md).
+  - Authored tailored discussion templates for Reddit (`r/LocalLLaMA`, `r/programming`, `r/node`).
+  - Authored 5-part release thread for X / Twitter.
+- [ ] **Community Broadcast (Ready to Publish 🚀):**
+  - [ ] Submit Show HN post to Hacker News.
+  - [ ] Post announcement across developer subreddits.
+  - [ ] Publish launch thread on X / Twitter.
 
 ---
 

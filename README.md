@@ -2,7 +2,21 @@
   <img src="./assets/logo.jpg" alt="ToolGuard Logo" width="220" style="border-radius: 20px;" />
   <h1>🛡️ ToolGuard</h1>
   <p><strong>The open-source security firewall & permission guard for AI coding assistants and MCP servers.</strong></p>
+
+  <p>
+    <a href="https://github.com/navdeepcodes10/toolguard/actions"><img src="https://github.com/navdeepcodes10/toolguard/actions/workflows/ci.yml/badge.svg" alt="CI Status" /></a>
+    <img src="https://img.shields.io/badge/tests-40%20passing-brightgreen.svg" alt="Tests: 40 passing" />
+    <img src="https://img.shields.io/badge/typescript-100%25-blue.svg" alt="TypeScript" />
+    <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-informational.svg" alt="Node >= 18" />
+    <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT" />
+  </p>
 </div>
+
+---
+
+<p align="center">
+  <img src="./assets/demo.svg" alt="ToolGuard Interactive Terminal Demo" width="100%" />
+</p>
 
 ---
 
@@ -155,6 +169,9 @@ npm test
 
 ---
 
-## 🤝 Contributing
+## 🤝 Community & Roadmap
 
-Contributions, additional rule presets, and feature requests are welcome! Feel free to open an issue or pull request.
+- 📖 **[Contribution Guide](./CONTRIBUTING.md)** — Guidelines for contributing security rules and presets.
+- 🔒 **[Security Policy](./SECURITY.md)** — Responsible disclosure and reporting.
+- 🗺️ **[Project Roadmap](./ROADMAP.md)** — Development phases, upcoming features, and enterprise horizon.
+- 🚀 **[Launch Kit](./LAUNCH.md)** — Discussion threads and release notes for HN, Reddit, and X.
