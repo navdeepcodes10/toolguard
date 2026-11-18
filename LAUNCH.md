@@ -54,7 +54,7 @@ Ready-to-use launch drafts, messaging hooks, and discussion points for sharing T
 > 🔹 **AST & Subshell parsing:** Parses chained commands (`cmd1 && cmd2`), subshells (`$(...)`), and base64 decode pipes.  
 > 🔹 **MCP Server Guard:** Run `toolguard mcp-proxy <server>` to inspect all incoming tool calls via standard JSON-RPC.  
 >
-> Fully tested (40/40 tests passing), lightweight (<14 KB package), and open source on GitHub.
+> Fully tested (40/40 tests passing), ultra-lightweight (<30 KB tarball, <100 KB unpacked), and open source on GitHub.
 >
 > Repo: https://github.com/navdeepcodes10/toolguard
 
