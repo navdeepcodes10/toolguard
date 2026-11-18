@@ -4,6 +4,7 @@
   <p><strong>The open-source security firewall & permission guard for AI coding assistants and MCP servers.</strong></p>
 
   <p>
+    <a href="https://www.npmjs.com/package/@navdeepcodes10/toolguard"><img src="https://img.shields.io/npm/v/@navdeepcodes10/toolguard.svg?style=flat&color=CB3837" alt="npm version" /></a>
     <a href="https://github.com/navdeepcodes10/toolguard/actions"><img src="https://github.com/navdeepcodes10/toolguard/actions/workflows/ci.yml/badge.svg" alt="CI Status" /></a>
     <img src="https://img.shields.io/badge/tests-40%20passing-brightgreen.svg" alt="Tests: 40 passing" />
     <img src="https://img.shields.io/badge/typescript-100%25-blue.svg" alt="TypeScript" />
