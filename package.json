@@ -7,10 +7,22 @@
     "toolguard": "dist/cli/index.js"
   },
   "files": [
-    "dist",
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "!dist/tests/**",
     "README.md",
-    "ROADMAP.md"
+    "ROADMAP.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/navdeepcodes10/toolguard.git"
+  },
+  "homepage": "https://github.com/navdeepcodes10/toolguard#readme",
+  "bugs": {
+    "url": "https://github.com/navdeepcodes10/toolguard/issues"
+  },
   "scripts": {
     "build": "tsc && chmod +x dist/cli/index.js",
     "prepack": "npm run build",
